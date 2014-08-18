@@ -1,6 +1,6 @@
-function format(str) {
 "use strict";
 
+function format(str) {
     var args = Array.prototype.slice.call(arguments, 1);
     return str.replace(/{(\d+)}/g, function(match, number) {
         return typeof args[number] !== 'undefined' ? args[number] : match;
@@ -8,25 +8,32 @@ function format(str) {
 }
 
 function escape_regex(string) {
-"use strict";
-
   return string.replace(/([.*+?^${}()|\[\]\/\\])/g, "\\$1");
 }
 
 function map(array, f) {
-"use strict";
-
     var new_array = [];
     for (var i = 0; i < array.length; i++) {
-        new_array.push(f.(array[i]));
+        new_array.push(f(array[i]));
     }
     return new_array;
 }
 
-function gen_elixir_string_rules(name, symbol, token) {
-"use strict";
+function merge(ob1, ob2) {
+    for (var key in ob2) {
+        if (ob2.hasOwnProperty(key)) {
+            ob1[key] = ob2[key];
+        }
+    }
+    return ob1;
+}
 
-    states = {}
+function include(state) {
+    return {include: state};
+}
+
+function gen_elixir_string_rules(name, symbol, token) {
+    var states = {};
     states['string_' + name] = [
         {
             token: token,
@@ -48,7 +55,6 @@ function gen_elixir_string_rules(name, symbol, token) {
 }
 
 function gen_elixir_sigstr_rules(term, token, interpol) {
-"use strict";
     if (interpol === undefined) interpol = true;
     if (interpol) {
         return [
@@ -87,18 +93,103 @@ function gen_elixir_sigstr_rules(term, token, interpol) {
     }
 }
 
+function gen_elixir_sigil_rules() {
+    // all valid sigil terminators (excluding heredocs)
+    var terminators = [
+        ['\\{', '\\}', 'cb'],
+        ['\\[', '\\]', 'sb'],
+        ['\\(', '\\)', 'pa'],
+        ['\\<', '\\>', 'ab'],
+        ['/', '/', 'slas'],
+        ['\\|', '\\|', 'pipe'],
+        ['"', '"', 'quot'],
+        ["'", "'", 'apos'],
+    ];
+
+    // heredocs have slightly different rules
+    var triquotes = [['"""', 'triquot'], ["'''", 'triapos']];
+
+    var token = 'string';
+    var sigil_rules = [];
+    var states = {};
+
+    for (var i = 0; i < triquotes.length; i++) {
+        var term = triquotes[i][0];
+        var name = triquotes[i][1];
+
+        sigil_rules = sigil_rules.concat([
+            {
+                token: [token, 'heredoc'],
+                regex: format('(~[a-z])({0})', term),
+                push: [name + '-end', name + '-intp'],
+            },
+            {
+                token: [token, 'heredoc'],
+                regex: format('(~[A-Z])({0})', term),
+                push: [name + '-end', name + '-no-intp'],
+            },
+        ]);
+
+        states[name +'-end'] = [{
+            token: token,
+            regex: '[a-zA-Z]*',
+            next: 'pop'
+        }];
+        states[name +'-intp'] = [
+            {
+                token: 'heredoc',
+                regex: '^\\s*' + term,
+                next: 'pop',
+            },
+            include('heredoc_interpol'),
+        ];
+        states[name +'-no-intp'] = [
+            {
+                token: 'heredoc',
+                regex: '^\\s*' + term,
+                next: 'pop',
+            },
+            include('heredoc_no_interpol'),
+        ];
+    }
+
+    for (var i = 0; i < terminators.length; i++) {
+        var lterm = terminators[i][0];
+        var rterm = terminators[i][1];
+        var name = terminators[i][2];
+
+        sigil_rules = sigil_rules.concat([
+            {
+                token: token,
+                regex: '~[a-z]' + lterm,
+                push: name + '-intp',
+            },
+            {
+                token: token,
+                regex: '~[A-Z]' + lterm,
+                push: name + '-no-intp',
+            },
+        ]);
+        states[name +'-intp'] = gen_elixir_sigstr_rules(rterm, token);
+        states[name +'-no-intp'] = gen_elixir_sigstr_rules(rterm, token, false);
+    }
+
+    states['sigils'] = sigil_rules;
+    return states;
+}
+
+
 define(function(require, exports, module) {
-"use strict";
 
 var ElixirHighlightRules = function() {
 
-    var keywordMapper = this.$keywords = this.createKeywordMapper({
-        "keyword": keywords,
-        "constant.language": buildinConstants,
-        "variable.language": builtinVariables,
-        "support.function": builtinFunctions,
-        "invalid.deprecated": "debugger" // TODO is this a remnant from js mode?
-    }, "identifier");
+    //var keywordMapper = this.$keywords = this.createKeywordMapper({
+        //"keyword": keywords,
+        //"constant.language": buildinConstants,
+        //"variable.language": builtinVariables,
+        //"support.function": builtinFunctions,
+        //"invalid.deprecated": "debugger" // TODO is this a remnant from js mode?
+    //}, "identifier");
 
     // regexp must not have capturing parentheses. Use (?:) instead.
     // regexps are ordered -> the first match is used
@@ -158,7 +249,7 @@ var ElixirHighlightRules = function() {
 
             // Various kinds of characters
             {
-                token: ['constant.character', 'constant.numeric', 'constant.character.escape'],
+                token: ['constant.character', 'constant.character.escape', 'constant.numeric', 'constant.character.escape'],
                 regex: '(\\?)' + long_hex_char_re,
             },
             {
@@ -273,7 +364,7 @@ var ElixirHighlightRules = function() {
             // strings and heredocs
             {
                 token: 'heredoc',
-                regex: '"""\s*',
+                regex: '"""\\s*',
                 next: 'heredoc_double',
             },
             {
@@ -420,11 +511,11 @@ var ElixirHighlightRules = function() {
             },
         ],
     };
-    tokens.update(gen_elixir_string_rules('double', '"', String.Double))
-    tokens.update(gen_elixir_string_rules('single', "'", String.Single))
-    tokens.update(gen_elixir_string_rules('double_atom', '"', String.Symbol))
-    tokens.update(gen_elixir_string_rules('single_atom', "'", String.Symbol))
-    tokens.update(gen_elixir_sigil_rules())
+    this.$rules = merge(this.$rules, gen_elixir_string_rules('double', '"', 'string'));
+    this.$rules = merge(this.$rules, gen_elixir_string_rules('single', "'", 'string'));
+    this.$rules = merge(this.$rules, gen_elixir_string_rules('double_atom', '"', 'symbol'));
+    this.$rules = merge(this.$rules, gen_elixir_string_rules('single_atom', "'", 'symbol'));
+    this.$rules = merge(this.$rules, gen_elixir_sigil_rules());
 
     this.normalizeRules();
 };
