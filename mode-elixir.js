@@ -2,6 +2,9 @@
 
 var token_heredoc = 'string';
 var token_symbol = 'constant.other.symbol.ruby';
+var token_punctuation = 'text';
+var token_attribute = 'variable';
+var token_interpol = token_punctuation;
 
 function format(str) {
     var args = Array.prototype.slice.call(arguments, 1);
@@ -305,13 +308,13 @@ var ElixirHighlightRules = function() {
 
             // [keywords: ...]
             {
-                token: [token_symbol, 'punctuation'],
+                token: [token_symbol, token_punctuation],
                 regex: format('({0}|{1})(:)(?=\\s|\\n)', special_atom_re, complex_name_re),
             },
 
             // @attributes
             {
-                token: 'identifier.attribute',
+                token: token_attribute,
                 regex: '@' + name_re,
             },
 
@@ -325,7 +328,7 @@ var ElixirHighlightRules = function() {
                 regex: op2_re,
             },
             {
-                token: 'punctuation',
+                token: token_punctuation,
                 regex: punctuation_re,
             },
             {
@@ -343,7 +346,7 @@ var ElixirHighlightRules = function() {
                 regex: name_re,
             },
             {
-                token: ['punctuation', 'support.class'],
+                token: [token_punctuation, 'support.class'],
                 regex: format('(%?)({0})', modname_re),
             },
 
@@ -394,12 +397,12 @@ var ElixirHighlightRules = function() {
             include('sigils'),
 
             {
-                token: 'punctuation',
+                token: token_punctuation,
                 regex: '%{',
                 push: 'map_key',
             },
             {
-                token: 'punctuation',
+                token: token_punctuation,
                 regex: '{',
                 push: 'tuple',
             },
@@ -466,14 +469,14 @@ var ElixirHighlightRules = function() {
         ],
         'interpol': [
             {
-                token: 'interpol',
+                token: token_interpol,
                 regex: '#{',
                 push: 'interpol_string',
             },
         ],
         'interpol_string' : [
             {
-                token: 'interpol',
+                token: token_interpol,
                 regex: '}',
                 next: "pop",
             },
@@ -482,17 +485,17 @@ var ElixirHighlightRules = function() {
         'map_key': [
             include('start'),
             {
-                token: 'punctuation',
+                token: token_punctuation,
                 regex: ':',
                 push: 'map_val',
             },
             {
-                token: 'punctuation',
+                token: token_punctuation,
                 regex: '=>',
                 push: 'map_val',
             },
             {
-                token: 'punctuation',
+                token: token_punctuation,
                 regex: '}',
                 next: 'pop',
             },
@@ -500,12 +503,12 @@ var ElixirHighlightRules = function() {
         'map_val': [
             include('start'),
             {
-                token: 'punctuation',
+                token: token_punctuation,
                 regex: ',',
                 next: 'pop',
             },
             {
-                token: 'punctuation',
+                token: token_punctuation,
                 regex: '(?=})',
                 next: 'pop',
             },
@@ -513,7 +516,7 @@ var ElixirHighlightRules = function() {
         'tuple': [
             include('start'),
             {
-                token: 'punctuation',
+                token: token_punctuation,
                 regex: '}',
                 next: 'pop',
             },
