@@ -195,17 +195,6 @@ define(function(require, exports, module) {
 
 var ElixirHighlightRules = function() {
 
-    //var keywordMapper = this.$keywords = this.createKeywordMapper({
-        //"keyword": keywords,
-        //"constant.language": buildinConstants,
-        //"variable.language": builtinVariables,
-        //"support.function": builtinFunctions,
-        //"invalid.deprecated": "debugger" // TODO is this a remnant from js mode?
-    //}, "identifier");
-
-    // regexp must not have capturing parentheses. Use (?:) instead.
-    // regexps are ordered -> the first match is used
-
     var KEYWORD = ['fn', 'do', 'end', 'after', 'else', 'rescue', 'catch'];
     var KEYWORD_OPERATOR = ['not', 'and', 'or', 'when', 'in'];
     var BUILTIN = [
@@ -232,6 +221,13 @@ var ElixirHighlightRules = function() {
     var PUNCTUATION = [
         '\\\\', '<<', '>>', '=>', '(', ')', ':', ';', ',', '[', ']'
     ];
+
+    var keywordMapper = this.$keywords = this.createKeywordMapper({
+        "keyword": KEYWORD.concat(KEYWORD_OPERATOR).concat(BUILTIN).join("|"),
+        "constant.language": CONSTANT.join("|"),
+        "variable.language": PSEUDO_VAR.join("|"),
+        "support.function": BUILTIN_NAMESPACE.concat(BUILTIN_DECLARATION).join("|"),
+    }, "identifier");
 
     var op3_re = map(OPERATORS3, escape_regex).join("|");
     var op2_re = map(OPERATORS2, escape_regex).join("|");
@@ -343,7 +339,7 @@ var ElixirHighlightRules = function() {
 
             // identifiers
             {
-                token: 'identifier',
+                token: keywordMapper,
                 regex: name_re,
             },
             {
