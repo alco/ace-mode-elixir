@@ -1,5 +1,25 @@
 "use strict";
 
+define('ace/mode/elixir', ['require', 'exports', 'module', 'ace/lib/oop', 'ace/mode/text', 'ace/mode/elixir_highlight_rules'], function(require, exports, module) {
+
+var oop = require("../lib/oop");
+var TextMode = require("./text").Mode;
+var ElixirHighlightRules = require("./elixir_highlight_rules").ElixirHighlightRules;
+
+var Mode = function() {
+    this.HighlightRules = ElixirHighlightRules;
+};
+oop.inherits(Mode, TextMode);
+
+(function() {
+    this.lineCommentStart = "#";
+    this.$id = "ace/mode/elixir";
+}).call(Mode.prototype);
+
+exports.Mode = Mode;
+});
+
+
 var token_heredoc = 'string';
 var token_symbol = 'constant.other.symbol.ruby';
 var token_punctuation = 'text';
@@ -43,7 +63,7 @@ function push_multi(array) {
         for (var i = 0; i < array.length; i++) {
             stack.unshift(array[i]);
         }
-        return this.nextState;
+        return array[array.length-1];
     };
 }
 
@@ -194,7 +214,7 @@ function gen_elixir_sigil_rules() {
 }
 
 
-define(function(require, exports, module) {
+define('ace/mode/elixir_highlight_rules', ['require', 'exports', 'module', 'ace/lib/oop', 'ace/mode/text_highlight_rules'], function(require, exports, module) {
 
 var ElixirHighlightRules = function() {
 
