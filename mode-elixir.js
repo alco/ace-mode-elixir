@@ -1,5 +1,8 @@
 "use strict";
 
+var token_heredoc = 'string';
+var token_symbol = 'constant.other.symbol.ruby';
+
 function format(str) {
     var args = Array.prototype.slice.call(arguments, 1);
     return str.replace(/{(\d+)}/g, function(match, number) {
@@ -30,6 +33,15 @@ function merge(ob1, ob2) {
 
 function include(state) {
     return {include: state};
+}
+
+function push_multi(array) {
+    return function(currentState, stack) {
+        for (var i = 0; i < array.length; i++) {
+            stack.unshift(array[i]);
+        }
+        return this.nextState;
+    };
 }
 
 function gen_elixir_string_rules(name, symbol, token) {
@@ -119,14 +131,14 @@ function gen_elixir_sigil_rules() {
 
         sigil_rules = sigil_rules.concat([
             {
-                token: [token, 'heredoc'],
+                token: [token, token_heredoc],
                 regex: format('(~[a-z])({0})', term),
-                push: [name + '-end', name + '-intp'],
+                next: push_multi([name + '-end', name + '-intp']),
             },
             {
-                token: [token, 'heredoc'],
+                token: [token, token_heredoc],
                 regex: format('(~[A-Z])({0})', term),
-                push: [name + '-end', name + '-no-intp'],
+                next: push_multi([name + '-end', name + '-no-intp']),
             },
         ]);
 
@@ -137,7 +149,7 @@ function gen_elixir_sigil_rules() {
         }];
         states[name +'-intp'] = [
             {
-                token: 'heredoc',
+                token: token_heredoc,
                 regex: '^\\s*' + term,
                 next: 'pop',
             },
@@ -145,7 +157,7 @@ function gen_elixir_sigil_rules() {
         ];
         states[name +'-no-intp'] = [
             {
-                token: 'heredoc',
+                token: token_heredoc,
                 regex: '^\\s*' + term,
                 next: 'pop',
             },
@@ -249,7 +261,7 @@ var ElixirHighlightRules = function() {
 
             // Various kinds of characters
             {
-                token: ['constant.character', 'constant.character.escape', 'constant.numeric', 'constant.character.escape'],
+                token: ['constant.character', 'constant.character.escape', 'constant.integer', 'constant.character.escape'],
                 regex: '(\\?)' + long_hex_char_re,
             },
             {
@@ -267,7 +279,7 @@ var ElixirHighlightRules = function() {
 
             // '::' has to go before atoms
             {
-                token: 'constant.other.symbol.ruby',
+                token: token_symbol,
                 regex: ':::',
             },
             {
@@ -277,27 +289,27 @@ var ElixirHighlightRules = function() {
 
             // atoms
             {
-                token: 'constant.other.symbol.ruby',
+                token: token_symbol,
                 regex: ':' + special_atom_re,
             },
             {
-                token: 'constant.other.symbol.ruby',
+                token: token_symbol,
                 regex: ':' + complex_name_re,
             },
             {
-                token: 'constant.other.symbol.ruby',
+                token: token_symbol,
                 regex: ':"',
-                next: 'string_double_atom',
+                push: 'string_double_atom',
             },
             {
-                token: 'constant.other.symbol.ruby',
+                token: token_symbol,
                 regex: ":'",
-                next: 'string_single_atom',
+                push: 'string_single_atom',
             },
 
             // [keywords: ...]
             {
-                token: ['constant.other.symbol.ruby', 'punctuation'],
+                token: [token_symbol, 'punctuation'],
                 regex: format('({0}|{1})(:)(?=\\s|\\n)', special_atom_re, complex_name_re),
             },
 
@@ -341,15 +353,15 @@ var ElixirHighlightRules = function() {
 
             // numbers
             {
-                token: 'constant.numeric',  // binary
+                token: 'constant.integer',  // binary
                 regex: '0b[01]+',
             },
             {
-                token: 'constant.numeric',  // octal
+                token: 'constant.integer',  // octal
                 regex: '0o[0-7]+',
             },
             {
-                token: 'constant.numeric',  // hexadecimal
+                token: 'constant.integer',  // hexadecimal
                 regex: '0x[\\da-fA-F]+',
             },
             {
@@ -363,24 +375,24 @@ var ElixirHighlightRules = function() {
 
             // strings and heredocs
             {
-                token: 'heredoc',
+                token: token_heredoc,
                 regex: '"""\\s*',
-                next: 'heredoc_double',
+                push: 'heredoc_double',
             },
             {
-                token: 'heredoc',
+                token: token_heredoc,
                 regex: "'''\\s*$",
-                next: 'heredoc_single',
+                push: 'heredoc_single',
             },
             {
                 token: 'string',
                 regex: '"',
-                next: 'string_double',
+                push: 'string_double',
             },
             {
                 token: 'string',
                 regex: "'",
-                next: 'string_single',
+                push: 'string_single',
             },
 
             include('sigils'),
@@ -388,17 +400,17 @@ var ElixirHighlightRules = function() {
             {
                 token: 'punctuation',
                 regex: '%{',
-                next: 'map_key',
+                push: 'map_key',
             },
             {
                 token: 'punctuation',
                 regex: '{',
-                next: 'tuple',
+                push: 'tuple',
             },
         ],
         'heredoc_double': [
             {
-                token: 'heredoc',
+                token: token_heredoc,
                 regex: '^\\s*"""',
                 next: 'pop',
             },
@@ -406,7 +418,7 @@ var ElixirHighlightRules = function() {
         ],
         'heredoc_single': [
             {
-                token: 'heredoc',
+                token: token_heredoc,
                 regex: "^\\s*'''",
                 next: 'pop',
             },
@@ -414,37 +426,37 @@ var ElixirHighlightRules = function() {
         ],
         'heredoc_interpol': [
             {
-                token: 'heredoc',
+                token: token_heredoc,
                 regex: '[^#\\\\\n]+',
             },
             include('escapes'),
             {
-                token: 'heredoc',
+                token: token_heredoc,
                 regex: '\\\\.',
             },
             {
-                token: 'heredoc',
+                token: token_heredoc,
                 regex: '\n+',
             },
             include('interpol'),
         ],
         'heredoc_no_interpol': [
             {
-                token: 'heredoc',
+                token: token_heredoc,
                 regex: '[^\\\\\n]+',
             },
             {
-                token: 'heredoc',
+                token: token_heredoc,
                 regex: '\\\\.',
             },
             {
-                token: 'heredoc',
+                token: token_heredoc,
                 regex: '\n+',
             },
         ],
         'escapes': [
             {
-                token: ['constant.character.escape', 'constant.numeric', 'constant.character.escape'],
+                token: ['constant.character.escape', 'constant.integer', 'constant.character.escape'],
                 regex: long_hex_char_re,
             },
             {
@@ -460,7 +472,7 @@ var ElixirHighlightRules = function() {
             {
                 token: 'interpol',
                 regex: '#{',
-                next: 'interpol_string',
+                push: 'interpol_string',
             },
         ],
         'interpol_string' : [
@@ -476,12 +488,12 @@ var ElixirHighlightRules = function() {
             {
                 token: 'punctuation',
                 regex: ':',
-                next: 'map_val',
+                push: 'map_val',
             },
             {
                 token: 'punctuation',
                 regex: '=>',
-                next: 'map_val',
+                push: 'map_val',
             },
             {
                 token: 'punctuation',
@@ -513,8 +525,8 @@ var ElixirHighlightRules = function() {
     };
     this.$rules = merge(this.$rules, gen_elixir_string_rules('double', '"', 'string'));
     this.$rules = merge(this.$rules, gen_elixir_string_rules('single', "'", 'string'));
-    this.$rules = merge(this.$rules, gen_elixir_string_rules('double_atom', '"', 'symbol'));
-    this.$rules = merge(this.$rules, gen_elixir_string_rules('single_atom', "'", 'symbol'));
+    this.$rules = merge(this.$rules, gen_elixir_string_rules('double_atom', '"', token_symbol));
+    this.$rules = merge(this.$rules, gen_elixir_string_rules('single_atom', "'", token_symbol));
     this.$rules = merge(this.$rules, gen_elixir_sigil_rules());
 
     this.normalizeRules();
